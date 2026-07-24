@@ -1,6 +1,6 @@
 # kero Design Document
 
-`kero` is a small terminal UI framework for Go.
+`kero` is a small terminal UI library written in Go.
 
 The goal is not to hide how terminal UIs work. The goal is to give the user a
 clear structure for writing them: receive events, update state, render cells,
@@ -513,7 +513,7 @@ body    = {X:24, Y:3, W:56, H:21}
 
 ## Widgets
 
-Widgets are optional helpers, not the center of the framework.
+Widgets are optional helpers, not the center of the library.
 
 A widget should be a plain struct with draw and update methods:
 
