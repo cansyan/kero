@@ -17,7 +17,6 @@ func DefaultOptions() Options {
 	return Options{
 		AltScreen: true,
 		Mouse:     false,
-		FPS:       30,
 	}
 }
 
