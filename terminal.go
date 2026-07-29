@@ -146,8 +146,6 @@ func (t *ansiTerminal) sttyRun(args ...string) error {
 
 func (t *ansiTerminal) parseRune(r rune) (Event, error) {
 	switch r {
-	case 0x03:
-		return KeyEvent{Key: KeyRune, Rune: 'c', Mod: ModCtrl}, nil
 	case 0x09:
 		return KeyEvent{Key: KeyTab}, nil
 	case 0x0d, 0x0a:
@@ -156,6 +154,26 @@ func (t *ansiTerminal) parseRune(r rune) (Event, error) {
 		return KeyEvent{Key: KeyBackspace}, nil
 	case 0x1b:
 		return t.parseEscape()
+	case 0x01:
+		return KeyEvent{Key: KeyRune, Rune: 'a', Mod: ModCtrl}, nil
+	case 0x02:
+		return KeyEvent{Key: KeyRune, Rune: 'b', Mod: ModCtrl}, nil
+	case 0x03:
+		return KeyEvent{Key: KeyRune, Rune: 'c', Mod: ModCtrl}, nil
+	case 0x04:
+		return KeyEvent{Key: KeyRune, Rune: 'd', Mod: ModCtrl}, nil
+	case 0x05:
+		return KeyEvent{Key: KeyRune, Rune: 'e', Mod: ModCtrl}, nil
+	case 0x06:
+		return KeyEvent{Key: KeyRune, Rune: 'f', Mod: ModCtrl}, nil
+	case 0x0e:
+		return KeyEvent{Key: KeyRune, Rune: 'n', Mod: ModCtrl}, nil
+	case 0x10:
+		return KeyEvent{Key: KeyRune, Rune: 'p', Mod: ModCtrl}, nil
+	case 0x11:
+		return KeyEvent{Key: KeyRune, Rune: 'q', Mod: ModCtrl}, nil
+	case 0x13:
+		return KeyEvent{Key: KeyRune, Rune: 's', Mod: ModCtrl}, nil
 	default:
 		if r < 0x20 {
 			return KeyEvent{Key: KeyUnknown, Rune: r}, nil

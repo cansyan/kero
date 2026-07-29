@@ -23,6 +23,9 @@ func (t *TextInput) Update(ev Event) {
 
 	switch e.Key {
 	case KeyRune:
+		if e.Mod&ModCtrl != 0 {
+			return
+		}
 		runes = append(runes, 0)
 		copy(runes[t.Cursor+1:], runes[t.Cursor:])
 		runes[t.Cursor] = e.Rune
