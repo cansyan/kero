@@ -2,7 +2,6 @@ package kero
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -252,9 +251,4 @@ func isTerminal(f *os.File) bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
-}
-
-func writeANSI(w io.Writer, format string, args ...any) error {
-	_, err := fmt.Fprintf(w, format, args...)
-	return err
 }

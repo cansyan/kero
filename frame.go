@@ -43,7 +43,7 @@ func (f *Frame) Set(x, y int, ch rune, s Style) {
 	if x < 0 || y < 0 || x >= f.width || y >= f.height {
 		return
 	}
-	if ch == 0 {
+	if ch == 0 || ch == '\n' || ch == '\r' || ch == '\t' {
 		ch = ' '
 	}
 	f.cells[y*f.width+x] = Cell{Ch: ch, Style: s}
