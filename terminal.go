@@ -173,6 +173,9 @@ func (t *ansiTerminal) parseRune(r rune) (Event, error) {
 		return KeyEvent{Key: KeyRune, Rune: 'q', Mod: ModCtrl}, nil
 	case 0x13:
 		return KeyEvent{Key: KeyRune, Rune: 's', Mod: ModCtrl}, nil
+	// Ctrl+\ (0x1c) -> represent as Rune '\' with ModCtrl
+	case 0x1c:
+		return KeyEvent{Key: KeyRune, Rune: '\\', Mod: ModCtrl}, nil
 	default:
 		if r < 0x20 {
 			return KeyEvent{Key: KeyUnknown, Rune: r}, nil
