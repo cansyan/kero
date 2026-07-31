@@ -6,7 +6,8 @@ type Options struct {
 	Mouse     bool
 	// FPS limits timed redraws, such as spinners, clocks, and animations.
 	// Event-only apps can ignore it and render only after input or resize.
-	FPS int
+	FPS   int
+	Kitty bool // kitty keyboard protocol
 }
 
 // Option changes Program options.
@@ -40,5 +41,12 @@ func WithFPS(fps int) Option {
 		if fps > 0 {
 			o.FPS = fps
 		}
+	}
+}
+
+// WithKitty enables or disables kitty keyboard protocol.
+func WithKitty(v bool) Option {
+	return func(o *Options) {
+		o.Kitty = v
 	}
 }

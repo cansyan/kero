@@ -66,6 +66,14 @@ func (t *ansiTerminal) Enter() error {
 		return err
 	}
 
+	// Enable Kitty keyboard protocol (CSI > 1 u) to receive modified keys like Shift+Enter
+	if t.opts.Kitty {
+		_, err := io.WriteString(t.out, "\x1b[>1u")
+		if err != nil {
+			return err
+		}
+	}
+
 	signal.Notify(t.resizes, syscall.SIGWINCH)
 	return nil
 }
@@ -80,6 +88,14 @@ func (t *ansiTerminal) Leave() error {
 	if _, err := io.WriteString(t.out, "\x1b[?25h\x1b[0m"); firstErr == nil && err != nil {
 		firstErr = err
 	}
+	// Restore keyboard mode (CSI < u) before leaving, only if it was enabled
+	if t.opts.Kitty {
+		_, err := io.WriteString(t.out, "\x1b[<u")
+		if firstErr == nil && err != nil {
+			firstErr = err
+		}
+	}
+
 	if t.opts.AltScreen {
 		if _, err := io.WriteString(t.out, "\x1b[?1049l"); firstErr == nil && err != nil {
 			firstErr = err
@@ -216,6 +232,98 @@ func (t *ansiTerminal) parseEscape() (Event, error) {
 }
 
 func keyFromEscape(prefix rune, seq string) Event {
+	// Handle SGR ("u") sequences from modern terminals, e.g. "13;2u" = Enter with Shift
+	if before, ok := strings.CutSuffix(seq, "u"); ok {
+		s := before
+		parts := strings.Split(s, ";")
+		if len(parts) >= 1 {
+			code, err := strconv.Atoi(parts[0])
+			if err == nil {
+				var mod Mod = ModNone
+				if len(parts) >= 2 {
+					if m, err := strconv.Atoi(parts[1]); err == nil {
+						switch m {
+						case 2:
+							mod |= ModShift
+						case 3:
+							mod |= ModAlt
+						case 4:
+							mod |= ModShift | ModAlt
+						case 5:
+							mod |= ModCtrl
+						case 6:
+							mod |= ModShift | ModCtrl
+						case 7:
+							mod |= ModAlt | ModCtrl
+						case 8:
+							mod |= ModShift | ModAlt | ModCtrl
+						}
+					}
+				}
+				// Map known control keys; otherwise treat as a rune with modifiers.
+				switch code {
+				case 13:
+					return KeyEvent{Key: KeyEnter, Mod: mod}
+				case 9:
+					return KeyEvent{Key: KeyTab, Mod: mod}
+				case 27:
+					return KeyEvent{Key: KeyEsc, Mod: mod}
+				default:
+					return KeyEvent{Key: KeyRune, Rune: rune(code), Mod: mod}
+				}
+			}
+		}
+	}
+
+	// Also handle CSI sequences that end with '~', e.g. "13;2~"
+	if before, ok := strings.CutSuffix(seq, "~"); ok {
+		s := before
+		parts := strings.Split(s, ";")
+		if len(parts) >= 1 {
+			code, err := strconv.Atoi(parts[0])
+			if err == nil {
+				var mod Mod = ModNone
+				if len(parts) >= 2 {
+					if m, err := strconv.Atoi(parts[1]); err == nil {
+						switch m {
+						case 2:
+							mod |= ModShift
+						case 3:
+							mod |= ModAlt
+						case 4:
+							mod |= ModShift | ModAlt
+						case 5:
+							mod |= ModCtrl
+						case 6:
+							mod |= ModShift | ModCtrl
+						case 7:
+							mod |= ModAlt | ModCtrl
+						case 8:
+							mod |= ModShift | ModAlt | ModCtrl
+						}
+					}
+				}
+				// Map known numeric CSI '~' codes to keys.
+				switch code {
+				case 13:
+					return KeyEvent{Key: KeyEnter, Mod: mod}
+				case 9:
+					return KeyEvent{Key: KeyTab, Mod: mod}
+				case 27:
+					return KeyEvent{Key: KeyEsc, Mod: mod}
+				case 3:
+					return KeyEvent{Key: KeyDelete, Mod: mod}
+				case 5:
+					return KeyEvent{Key: KeyPgUp, Mod: mod}
+				case 6:
+					return KeyEvent{Key: KeyPgDown, Mod: mod}
+				default:
+					return KeyEvent{Key: KeyRune, Rune: rune(code), Mod: mod}
+				}
+			}
+		}
+	}
+
 	if prefix == 'O' {
 		switch seq {
 		case "H":

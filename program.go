@@ -87,8 +87,8 @@ func (p *Program) Run() error {
 			return err
 		}
 
-		if ke, ok := ev.(KeyEvent); ok {
-			p.ctx.LastKeyEvent = ke
+		if k, ok := ev.(KeyEvent); ok {
+			p.ctx.LastKey = k
 		}
 
 		if err := p.render(); err != nil {

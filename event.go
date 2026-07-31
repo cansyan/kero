@@ -1,6 +1,10 @@
 package kero
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // Event is a value emitted by the terminal or runtime.
 type Event interface {
@@ -15,6 +19,66 @@ type KeyEvent struct {
 }
 
 func (KeyEvent) event() {}
+
+// String returns a human-readable representation of the key event,
+// including modifiers. Examples: "ctrl+a", "shift+enter", "esc".
+func (k KeyEvent) String() string {
+	var mods []string
+	if k.Mod&ModCtrl != 0 {
+		mods = append(mods, "ctrl")
+	}
+	if k.Mod&ModAlt != 0 {
+		mods = append(mods, "alt")
+	}
+	if k.Mod&ModShift != 0 {
+		mods = append(mods, "shift")
+	}
+
+	var keyName string
+	switch k.Key {
+	case KeyRune:
+		// printable ASCII-ish
+		if k.Rune >= 0x20 && k.Rune != 0x7f {
+			r := k.Rune
+			keyName = fmt.Sprintf("%c", r)
+		} else {
+			keyName = fmt.Sprintf("U+%04X", k.Rune)
+		}
+	case KeyEsc:
+		keyName = "esc"
+	case KeyEnter:
+		keyName = "enter"
+	case KeyBackspace:
+		keyName = "backspace"
+	case KeyTab:
+		keyName = "tab"
+	case KeyUp:
+		keyName = "up"
+	case KeyDown:
+		keyName = "down"
+	case KeyLeft:
+		keyName = "left"
+	case KeyRight:
+		keyName = "right"
+	case KeyHome:
+		keyName = "home"
+	case KeyEnd:
+		keyName = "end"
+	case KeyPgUp:
+		keyName = "pgup"
+	case KeyPgDown:
+		keyName = "pgdown"
+	case KeyDelete:
+		keyName = "delete"
+	default:
+		keyName = "unknown"
+	}
+
+	if len(mods) == 0 {
+		return keyName
+	}
+	return strings.Join(mods, "+") + "+" + keyName
+}
 
 // ResizeEvent represents a terminal size change.
 type ResizeEvent struct {
