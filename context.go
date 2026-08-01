@@ -5,8 +5,6 @@ type Context struct {
 	Width  int
 	Height int
 
-	LastKey KeyEvent
-
 	done bool
 }
 
