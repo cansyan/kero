@@ -27,6 +27,8 @@ type ansiTerminal struct {
 	reader  *bufio.Reader
 	state   string
 	resizes chan os.Signal
+	events  chan eventResult
+	done    chan struct{}
 }
 
 func newTerminal(in *os.File, out io.Writer, opts Options) *ansiTerminal {
@@ -36,6 +38,8 @@ func newTerminal(in *os.File, out io.Writer, opts Options) *ansiTerminal {
 		opts:    opts,
 		reader:  bufio.NewReader(in),
 		resizes: make(chan os.Signal, 1),
+		events:  make(chan eventResult, 16),
+		done:    make(chan struct{}),
 	}
 }
 
@@ -75,10 +79,48 @@ func (t *ansiTerminal) Enter() error {
 	}
 
 	signal.Notify(t.resizes, syscall.SIGWINCH)
+
+	// Start a dedicated goroutine that continuously reads runes from stdin
+	// and publishes parsed Events to inputEvents or inputErr. This allows
+	// ReadEvent to select on resizes and input concurrently without leaking
+	// blocked readers.
+	go func() {
+		for {
+			select {
+			case <-t.done:
+				return
+			default:
+			}
+			r, _, err := t.reader.ReadRune()
+			if err != nil {
+				res := eventResult{ev: nil, err: err}
+				select {
+				case t.events <- res:
+				case <-t.done:
+				}
+				return
+			}
+			ev, perr := t.parseRune(r)
+			res := eventResult{ev: ev, err: perr}
+			select {
+			case t.events <- res:
+			case <-t.done:
+				return
+			}
+		}
+	}()
+
 	return nil
 }
 
 func (t *ansiTerminal) Leave() error {
+	// Stop reader goroutine first.
+	select {
+	case <-t.done:
+		// already closed
+	default:
+		close(t.done)
+	}
 	signal.Stop(t.resizes)
 
 	var firstErr error
@@ -117,14 +159,9 @@ func (t *ansiTerminal) ReadEvent() (Event, error) {
 			return nil, err
 		}
 		return ResizeEvent{Width: size.Width, Height: size.Height}, nil
-	default:
+	case res := <-t.events:
+		return res.ev, res.err
 	}
-
-	r, _, err := t.reader.ReadRune()
-	if err != nil {
-		return nil, err
-	}
-	return t.parseRune(r)
 }
 
 func (t *ansiTerminal) Size() (Size, error) {
