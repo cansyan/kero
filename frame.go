@@ -13,7 +13,7 @@ type Frame struct {
 	cells  []Cell
 }
 
-func newFrame(w, h int) Frame {
+func NewFrame(w, h int) Frame {
 	if w < 0 {
 		w = 0
 	}
@@ -119,7 +119,7 @@ func (f *Frame) Box(r Rect, s Style) {
 	}
 }
 
-func (f *Frame) cell(x, y int) Cell {
+func (f *Frame) Cell(x, y int) Cell {
 	if x < 0 || y < 0 || x >= f.width || y >= f.height {
 		return Cell{Ch: ' ', Style: NewStyle()}
 	}

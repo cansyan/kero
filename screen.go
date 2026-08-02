@@ -23,8 +23,8 @@ func NewScreen(out io.Writer, w, h int) *Screen {
 		out:    out,
 		width:  w,
 		height: h,
-		prev:   newFrame(w, h),
-		next:   newFrame(w, h),
+		prev:   NewFrame(w, h),
+		next:   NewFrame(w, h),
 	}
 }
 
@@ -38,8 +38,8 @@ func (s *Screen) Resize(w, h int) {
 	}
 	s.width = w
 	s.height = h
-	s.prev = newFrame(w, h)
-	s.next = newFrame(w, h)
+	s.prev = NewFrame(w, h)
+	s.next = NewFrame(w, h)
 }
 
 // Frame returns the next drawable frame.
@@ -57,7 +57,7 @@ func (s *Screen) Flush() error {
 
 	for y := 0; y < s.height; y++ {
 		for x := 0; x < s.width; x++ {
-			cell := s.next.cell(x, y)
+			cell := s.next.Cell(x, y)
 			if cell.Style != current {
 				current = cell.Style
 				b.WriteString(styleANSI(current))
