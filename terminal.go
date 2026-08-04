@@ -305,6 +305,8 @@ func keyFromEscape(prefix rune, seq string) Event {
 					return KeyEvent{Key: KeyTab, Mod: mod}
 				case 27:
 					return KeyEvent{Key: KeyEsc, Mod: mod}
+				case 127:
+					return KeyEvent{Key: KeyBackspace, Mod: mod}
 				default:
 					return KeyEvent{Key: KeyRune, Rune: rune(code), Mod: mod}
 				}
