@@ -238,8 +238,20 @@ func (t *ansiTerminal) parseRune(r rune) (Event, error) {
 }
 
 func (t *ansiTerminal) parseEscape() (Event, error) {
+	// If no bytes buffered, do a non-blocking peek to see if more bytes
+	// follow the ESC. This avoids blocking for a long time when ESC is
+	// pressed alone but still allows full CSI/SS3 sequences to be read.
 	if t.reader.Buffered() == 0 {
-		return KeyEvent{Key: KeyEsc}, nil
+		fd := int(t.in.Fd())
+		// Try to set non-blocking mode temporarily.
+		_ = syscall.SetNonblock(fd, true)
+		defer syscall.SetNonblock(fd, false)
+		if _, err := t.reader.Peek(1); err != nil {
+			// No additional bytes available immediately: treat as lone ESC.
+			// If the error is something else, fall back to returning ESC to
+			// preserve existing behavior rather than failing the app.
+			return KeyEvent{Key: KeyEsc}, nil
+		}
 	}
 
 	next, _, err := t.reader.ReadRune()
@@ -249,6 +261,39 @@ func (t *ansiTerminal) parseEscape() (Event, error) {
 		}
 		return nil, err
 	}
+	// Handle double-ESC sequences where Alt prefixes a CSI/SS3 sequence
+	if next == '\x1b' {
+		// read the following rune after the second ESC
+		next2, _, err := t.reader.ReadRune()
+		if err != nil {
+			if err == io.EOF {
+				return KeyEvent{Key: KeyEsc, Mod: ModAlt}, nil
+			}
+			return nil, err
+		}
+		if next2 != '[' && next2 != 'O' {
+			return KeyEvent{Key: KeyRune, Rune: next2, Mod: ModAlt}, nil
+		}
+
+		var seq []rune
+		for {
+			r, _, err := t.reader.ReadRune()
+			if err != nil {
+				return nil, err
+			}
+			seq = append(seq, r)
+			if (r >= '@' && r <= '~') || len(seq) > 32 {
+				break
+			}
+		}
+		ev := keyFromEscape(next2, string(seq))
+		if ke, ok := ev.(KeyEvent); ok {
+			ke.Mod |= ModAlt
+			return ke, nil
+		}
+		return ev, nil
+	}
+
 	if next != '[' && next != 'O' {
 		return KeyEvent{Key: KeyRune, Rune: next, Mod: ModAlt}, nil
 	}
@@ -294,6 +339,10 @@ func keyFromEscape(prefix rune, seq string) Event {
 							mod |= ModAlt | ModCtrl
 						case 8:
 							mod |= ModShift | ModAlt | ModCtrl
+						case 9:
+							mod |= ModMeta
+						case 10:
+							mod |= ModShift | ModMeta
 						}
 					}
 				}
@@ -339,6 +388,10 @@ func keyFromEscape(prefix rune, seq string) Event {
 							mod |= ModAlt | ModCtrl
 						case 8:
 							mod |= ModShift | ModAlt | ModCtrl
+						case 9:
+							mod |= ModMeta
+						case 10:
+							mod |= ModShift | ModMeta
 						}
 					}
 				}
@@ -359,6 +412,59 @@ func keyFromEscape(prefix rune, seq string) Event {
 				default:
 					return KeyEvent{Key: KeyRune, Rune: rune(code), Mod: mod}
 				}
+			}
+		}
+	}
+
+	// Handle parameterized CSI sequences that end in a final byte (letters), e.g. "1;3D" = Alt+Left
+	if len(seq) >= 2 {
+		final := seq[len(seq)-1]
+		params := seq[:len(seq)-1]
+		if params != "" {
+			parts := strings.Split(params, ";")
+			mapMod := func(m int) Mod {
+				var mod Mod = ModNone
+				switch m {
+				case 2:
+					mod |= ModShift
+				case 3:
+					mod |= ModAlt
+				case 4:
+					mod |= ModShift | ModAlt
+				case 5:
+					mod |= ModCtrl
+				case 6:
+					mod |= ModShift | ModCtrl
+				case 7:
+					mod |= ModAlt | ModCtrl
+				case 8:
+					mod |= ModShift | ModAlt | ModCtrl
+				case 9:
+					mod |= ModMeta
+				case 10:
+					mod |= ModShift | ModMeta
+				}
+				return mod
+			}
+			var mod Mod = ModNone
+			if len(parts) >= 2 {
+				if m, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
+					mod = mapMod(m)
+				}
+			}
+			switch final {
+			case 'A':
+				return KeyEvent{Key: KeyUp, Mod: mod}
+			case 'B':
+				return KeyEvent{Key: KeyDown, Mod: mod}
+			case 'C':
+				return KeyEvent{Key: KeyRight, Mod: mod}
+			case 'D':
+				return KeyEvent{Key: KeyLeft, Mod: mod}
+			case 'H':
+				return KeyEvent{Key: KeyHome, Mod: mod}
+			case 'F':
+				return KeyEvent{Key: KeyEnd, Mod: mod}
 			}
 		}
 	}

@@ -30,6 +30,9 @@ func (k KeyEvent) String() string {
 	if k.Mod&ModAlt != 0 {
 		mods = append(mods, "alt")
 	}
+	if k.Mod&ModMeta != 0 {
+		mods = append(mods, "cmd")
+	}
 	if k.Mod&ModShift != 0 {
 		mods = append(mods, "shift")
 	}
@@ -89,6 +92,7 @@ type ResizeEvent struct {
 func (ResizeEvent) event() {}
 
 // TickEvent represents a timed redraw tick.
+// It only presents when program option FPS is set
 type TickEvent struct {
 	Time time.Time
 }
@@ -135,6 +139,7 @@ const (
 	ModCtrl Mod = 1 << iota
 	ModAlt
 	ModShift
+	ModMeta // With Kitty keyboard protocol enabled, Kitty terminal reports Command key on macOS
 )
 
 // MouseButton identifies a mouse button.
