@@ -6,8 +6,9 @@ type Options struct {
 	Mouse     bool
 	// FPS limits timed redraws, such as spinners, clocks, and animations.
 	// Event-only apps can ignore it and render only after input or resize.
-	FPS   int
-	Kitty bool // kitty keyboard protocol
+	FPS            int
+	Kitty          bool // kitty keyboard protocol
+	BracketedPaste bool
 }
 
 // Option changes Program options.
@@ -16,8 +17,9 @@ type Option func(*Options)
 // DefaultOptions returns the default Program options.
 func DefaultOptions() Options {
 	return Options{
-		AltScreen: true,
-		Mouse:     false,
+		AltScreen:      true,
+		Mouse:          false,
+		BracketedPaste: true,
 	}
 }
 
@@ -48,5 +50,12 @@ func WithFPS(fps int) Option {
 func WithKitty(v bool) Option {
 	return func(o *Options) {
 		o.Kitty = v
+	}
+}
+
+// WithBracketedPaste enables or disables bracketed paste mode (\x1b[?2004h).
+func WithBracketedPaste(v bool) Option {
+	return func(o *Options) {
+		o.BracketedPaste = v
 	}
 }

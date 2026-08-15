@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"kero"
+	"github.com/cansyan/kero"
 )
 
 type Counter struct {

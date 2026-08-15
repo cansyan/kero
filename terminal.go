@@ -65,19 +65,23 @@ func (t *ansiTerminal) Enter() error {
 			return err
 		}
 	}
-	_, err := io.WriteString(t.out, "\x1b[?25l\x1b[H\x1b[2J")
-	if err != nil {
+
+	// Hide cursor and clear screen
+	if _, err := io.WriteString(t.out, "\x1b[?25l\x1b[H\x1b[2J"); err != nil {
 		return err
 	}
 
-	// Enable Kitty keyboard protocol (CSI > 1 u) to receive modified keys like Shift+Enter
-	if t.opts.Kitty {
-		_, err := io.WriteString(t.out, "\x1b[>1u")
-		if err != nil {
+	if t.opts.BracketedPaste {
+		if _, err := io.WriteString(t.out, "\x1b[?2004h"); err != nil {
 			return err
 		}
 	}
 
+	if t.opts.Kitty {
+		if _, err := io.WriteString(t.out, "\x1b[>1u"); err != nil {
+			return err
+		}
+	}
 	signal.Notify(t.resizes, syscall.SIGWINCH)
 
 	// Start a dedicated goroutine that continuously reads runes from stdin
@@ -127,9 +131,19 @@ func (t *ansiTerminal) Leave() error {
 	if t.opts.Mouse {
 		_, firstErr = io.WriteString(t.out, "\x1b[?1006l\x1b[?1000l")
 	}
+
+	// Conditionally disable Bracketed Paste Mode
+	if t.opts.BracketedPaste {
+		if _, err := io.WriteString(t.out, "\x1b[?2004l"); firstErr == nil && err != nil {
+			firstErr = err
+		}
+	}
+
+	// show cursor and attribute reset
 	if _, err := io.WriteString(t.out, "\x1b[?25h\x1b[0m"); firstErr == nil && err != nil {
 		firstErr = err
 	}
+
 	// Restore keyboard mode (CSI < u) before leaving, only if it was enabled
 	if t.opts.Kitty {
 		_, err := io.WriteString(t.out, "\x1b[<u")
@@ -261,9 +275,9 @@ func (t *ansiTerminal) parseEscape() (Event, error) {
 		}
 		return nil, err
 	}
+
 	// Handle double-ESC sequences where Alt prefixes a CSI/SS3 sequence
 	if next == '\x1b' {
-		// read the following rune after the second ESC
 		next2, _, err := t.reader.ReadRune()
 		if err != nil {
 			if err == io.EOF {
@@ -286,7 +300,18 @@ func (t *ansiTerminal) parseEscape() (Event, error) {
 				break
 			}
 		}
-		ev := keyFromEscape(next2, string(seq))
+
+		seqStr := string(seq)
+		if next2 == '[' {
+			if seqStr == "200~" {
+				return PasteStartEvent{}, nil
+			}
+			if seqStr == "201~" {
+				return PasteEndEvent{}, nil
+			}
+		}
+
+		ev := keyFromEscape(next2, seqStr)
 		if ke, ok := ev.(KeyEvent); ok {
 			ke.Mod |= ModAlt
 			return ke, nil
@@ -310,7 +335,18 @@ func (t *ansiTerminal) parseEscape() (Event, error) {
 		}
 	}
 
-	return keyFromEscape(next, string(seq)), nil
+	seqStr := string(seq)
+	if next == '[' {
+		// Detect bracketed paste start/end sequences
+		if seqStr == "200~" {
+			return PasteStartEvent{}, nil
+		}
+		if seqStr == "201~" {
+			return PasteEndEvent{}, nil
+		}
+	}
+
+	return keyFromEscape(next, seqStr), nil
 }
 
 func keyFromEscape(prefix rune, seq string) Event {

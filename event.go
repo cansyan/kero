@@ -162,3 +162,9 @@ const (
 	MouseRelease
 	MouseDrag
 )
+
+type PasteStartEvent struct{}
+func (PasteStartEvent) event() {}
+
+type PasteEndEvent struct{}
+func (PasteEndEvent) event() {}
