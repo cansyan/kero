@@ -101,14 +101,60 @@ func (TickEvent) event() {}
 
 // MouseEvent represents a terminal mouse event.
 type MouseEvent struct {
-	X      int
-	Y      int
+	X      int // starts from 0
+	Y      int // starts from 0
 	Button MouseButton
 	Action MouseAction
 	Mod    Mod
 }
 
 func (MouseEvent) event() {}
+
+// String returns a human-readable representation of the mouse event.
+func (m MouseEvent) String() string {
+	var mods []string
+	if m.Mod&ModCtrl != 0 {
+		mods = append(mods, "ctrl")
+	}
+	if m.Mod&ModAlt != 0 {
+		mods = append(mods, "alt")
+	}
+	if m.Mod&ModShift != 0 {
+		mods = append(mods, "shift")
+	}
+
+	var btnName string
+	switch m.Button {
+	case MouseLeft:
+		btnName = "left"
+	case MouseMiddle:
+		btnName = "middle"
+	case MouseRight:
+		btnName = "right"
+	case MouseWheelUp:
+		btnName = "wheel_up"
+	case MouseWheelDown:
+		btnName = "wheel_down"
+	default:
+		btnName = "none"
+	}
+
+	var actName string
+	switch m.Action {
+	case MousePress:
+		actName = "press"
+	case MouseRelease:
+		actName = "release"
+	case MouseDrag:
+		actName = "drag"
+	}
+
+	desc := fmt.Sprintf("mouse_%s_%s(%d,%d)", btnName, actName, m.X, m.Y)
+	if len(mods) == 0 {
+		return desc
+	}
+	return strings.Join(mods, "+") + "+" + desc
+}
 
 // Key identifies non-text keyboard keys.
 type Key int
@@ -164,7 +210,9 @@ const (
 )
 
 type PasteStartEvent struct{}
+
 func (PasteStartEvent) event() {}
 
 type PasteEndEvent struct{}
+
 func (PasteEndEvent) event() {}

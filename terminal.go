@@ -60,8 +60,10 @@ func (t *ansiTerminal) Enter() error {
 			return err
 		}
 	}
+
 	if t.opts.Mouse {
-		if _, err := io.WriteString(t.out, "\x1b[?1000h\x1b[?1006h"); err != nil {
+		// 1000h: normal tracking, 1002h: cell motion tracking, 1006h: SGR format
+		if _, err := io.WriteString(t.out, "\x1b[?1000h\x1b[?1002h\x1b[?1006h"); err != nil {
 			return err
 		}
 	}
@@ -129,7 +131,8 @@ func (t *ansiTerminal) Leave() error {
 
 	var firstErr error
 	if t.opts.Mouse {
-		_, firstErr = io.WriteString(t.out, "\x1b[?1006l\x1b[?1000l")
+		// Disable SGR mode (1006), cell motion tracking (1002), and normal mouse mode (1000)
+		_, firstErr = io.WriteString(t.out, "\x1b[?1006l\x1b[?1002l\x1b[?1000l")
 	}
 
 	// Conditionally disable Bracketed Paste Mode
@@ -139,15 +142,14 @@ func (t *ansiTerminal) Leave() error {
 		}
 	}
 
-	// show cursor and attribute reset
+	// Show cursor and reset text attributes
 	if _, err := io.WriteString(t.out, "\x1b[?25h\x1b[0m"); firstErr == nil && err != nil {
 		firstErr = err
 	}
 
 	// Restore keyboard mode (CSI < u) before leaving, only if it was enabled
 	if t.opts.Kitty {
-		_, err := io.WriteString(t.out, "\x1b[<u")
-		if firstErr == nil && err != nil {
+		if _, err := io.WriteString(t.out, "\x1b[<u"); firstErr == nil && err != nil {
 			firstErr = err
 		}
 	}
@@ -157,6 +159,7 @@ func (t *ansiTerminal) Leave() error {
 			firstErr = err
 		}
 	}
+
 	if t.state != "" {
 		if err := t.sttyRun(t.state); firstErr == nil && err != nil {
 			firstErr = err
@@ -350,6 +353,11 @@ func (t *ansiTerminal) parseEscape() (Event, error) {
 }
 
 func keyFromEscape(prefix rune, seq string) Event {
+	// SGR Mouse event sequence handling
+	if strings.HasPrefix(seq, "<") {
+		return parseMouseSGR(seq)
+	}
+
 	// Handle SGR ("u") sequences from modern terminals, e.g. "13;2u" = Enter with Shift
 	if before, ok := strings.CutSuffix(seq, "u"); ok {
 		s := before
@@ -543,4 +551,83 @@ func isTerminal(f *os.File) bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
+}
+
+// parseMouseSGR parses SGR 1006 mouse sequence, e.g., "<0;20;10M" or "<0;20;10m".
+func parseMouseSGR(seq string) Event {
+	if !strings.HasPrefix(seq, "<") {
+		return KeyEvent{Key: KeyUnknown}
+	}
+
+	last := seq[len(seq)-1]
+	if last != 'M' && last != 'm' {
+		return KeyEvent{Key: KeyUnknown}
+	}
+
+	parts := strings.Split(seq[1:len(seq)-1], ";")
+	if len(parts) != 3 {
+		return KeyEvent{Key: KeyUnknown}
+	}
+
+	cb, err1 := strconv.Atoi(parts[0])
+	cx, err2 := strconv.Atoi(parts[1])
+	cy, err3 := strconv.Atoi(parts[2])
+	if err1 != nil || err2 != nil || err3 != nil {
+		return KeyEvent{Key: KeyUnknown}
+	}
+
+	var mod Mod
+	if cb&4 != 0 {
+		mod |= ModShift
+	}
+	if cb&8 != 0 {
+		mod |= ModAlt
+	}
+	if cb&16 != 0 {
+		mod |= ModCtrl
+	}
+
+	btnCode := cb & 3
+	isWheel := (cb & 64) != 0
+	isDrag := (cb & 32) != 0
+
+	var btn MouseButton
+	var action MouseAction
+
+	if isWheel {
+		switch btnCode {
+		case 0:
+			btn = MouseWheelUp
+		case 1:
+			btn = MouseWheelDown
+		}
+		action = MousePress
+	} else {
+		switch btnCode {
+		case 0:
+			btn = MouseLeft
+		case 1:
+			btn = MouseMiddle
+		case 2:
+			btn = MouseRight
+		case 3:
+			btn = MouseNone
+		}
+
+		if last == 'm' {
+			action = MouseRelease
+		} else if isDrag {
+			action = MouseDrag
+		} else {
+			action = MousePress
+		}
+	}
+
+	return MouseEvent{
+		X:      cx - 1, // 0-based indexing
+		Y:      cy - 1, // 0-based indexing
+		Button: btn,
+		Action: action,
+		Mod:    mod,
+	}
 }
