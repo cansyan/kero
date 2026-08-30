@@ -98,7 +98,7 @@ func (p *Program) Run() error {
 func (p *Program) render() error {
 	f := p.screen.Frame()
 	f.Clear()
-	p.app.View(&p.ctx, f)
+	p.app.Draw(&p.ctx, f)
 	return p.screen.Flush()
 }
 

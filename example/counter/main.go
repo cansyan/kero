@@ -35,7 +35,7 @@ func (c *Counter) Update(ctx *kero.Context, ev kero.Event) error {
 	return nil
 }
 
-func (c *Counter) View(ctx *kero.Context, f *kero.Frame) {
+func (c *Counter) Draw(ctx *kero.Context, f *kero.Frame) {
 	title := kero.NewStyle().Foreground(kero.ColorCyan).Bold()
 	normal := kero.NewStyle()
 

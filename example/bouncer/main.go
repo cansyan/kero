@@ -39,7 +39,7 @@ func (b *Bouncer) Update(ctx *kero.Context, ev kero.Event) error {
 	return nil
 }
 
-func (b *Bouncer) View(ctx *kero.Context, f *kero.Frame) {
+func (b *Bouncer) Draw(ctx *kero.Context, f *kero.Frame) {
 	title := kero.NewStyle().Foreground(kero.ColorCyan).Bold()
 	ball := kero.NewStyle().Foreground(kero.ColorYellow).Bold()
 	normal := kero.NewStyle()

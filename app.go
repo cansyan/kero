@@ -6,6 +6,7 @@ type App interface {
 	Init(ctx *Context) error
 	// Update receives input, resize events, ticks, and internal messages.
 	Update(ctx *Context, ev Event) error
-	// View draws the current state. It should avoid mutating application state.
-	View(ctx *Context, f *Frame)
+	// Draw renders the current application state onto the provided Frame.
+	// It should avoid mutating application state.
+	Draw(ctx *Context, f *Frame)
 }
