@@ -2,6 +2,8 @@ package kero
 
 import (
 	"bufio"
+	"encoding/base64"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -17,6 +19,7 @@ type Terminal interface {
 	Leave() error
 	ReadEvent() (Event, error)
 	Size() (Size, error)
+	CopyToClipboard(text string) error
 }
 
 type ansiTerminal struct {
@@ -199,6 +202,12 @@ func (t *ansiTerminal) Size() (Size, error) {
 		return Size{Width: 80, Height: 24}, nil
 	}
 	return Size{Width: cols, Height: rows}, nil
+}
+
+func (t *ansiTerminal) CopyToClipboard(text string) error {
+	encoded := base64.StdEncoding.EncodeToString([]byte(text))
+	_, err := io.WriteString(t.out, fmt.Sprintf("\x1b]52;c;%s\x07", encoded))
+	return err
 }
 
 func (t *ansiTerminal) sttyOutput(args ...string) ([]byte, error) {

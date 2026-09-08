@@ -28,7 +28,15 @@ func New(app App, opts ...Option) *Program {
 		opts:     options,
 		terminal: terminal,
 		screen:   NewScreen(os.Stdout, 0, 0),
+		ctx: Context{
+			terminal: terminal,
+		},
 	}
+}
+
+// CopyToClipboard copies text to the system clipboard via the terminal.
+func (p *Program) CopyToClipboard(text string) error {
+	return p.terminal.CopyToClipboard(text)
 }
 
 // Run starts the terminal program and blocks until the app quits or an error occurs.
