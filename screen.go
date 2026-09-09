@@ -92,6 +92,9 @@ func styleANSI(s Style) string {
 	if s.Attr&AttrDim != 0 {
 		codes = append(codes, "2")
 	}
+	if s.Attr&AttrItalic != 0 {
+		codes = append(codes, "3")
+	}
 	if s.Attr&AttrUnderline != 0 {
 		codes = append(codes, "4")
 	}

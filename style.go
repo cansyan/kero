@@ -48,6 +48,12 @@ func (s Style) Dim() Style {
 	return s
 }
 
+// Italic returns s with italic text
+func (s Style) Italic() Style {
+	s.Attr |= AttrItalic
+	return s
+}
+
 // Color identifies a basic terminal color.
 type Color int
 
@@ -72,4 +78,5 @@ const (
 	AttrUnderline
 	AttrReverse
 	AttrDim
+	AttrItalic
 )
