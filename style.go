@@ -1,5 +1,10 @@
 package kero
 
+import (
+	"strconv"
+	"strings"
+)
+
 // Style stores foreground, background, and text attributes.
 type Style struct {
 	Fg   Color
@@ -54,20 +59,76 @@ func (s Style) Italic() Style {
 	return s
 }
 
-// Color identifies a basic terminal color.
-type Color int
+type ColorType uint8
 
 const (
-	ColorDefault Color = iota
-	ColorBlack
-	ColorRed
-	ColorGreen
-	ColorYellow
-	ColorBlue
-	ColorMagenta
-	ColorCyan
-	ColorWhite
+	ColorTypeDefault ColorType = iota
+	ColorTypeANSI              // Standard 8/16 ANSI colors
+	ColorType256               // 256-color palette (0-255)
+	ColorTypeRGB               // 24-bit True Color
 )
+
+type Color struct {
+	Type ColorType
+	R    uint8 // Used for RGB (or ANSI index if preferred)
+	G    uint8
+	B    uint8
+	Idx  uint8 // Used for 256-color index or basic ANSI index
+}
+
+// Basic ANSI Color Constants (0-7 offset logic for standard 30-37 / 40-47)
+var (
+	ColorDefault = Color{Type: ColorTypeDefault}
+	ColorBlack   = Color{Type: ColorTypeANSI, Idx: 0}
+	ColorRed     = Color{Type: ColorTypeANSI, Idx: 1}
+	ColorGreen   = Color{Type: ColorTypeANSI, Idx: 2}
+	ColorYellow  = Color{Type: ColorTypeANSI, Idx: 3}
+	ColorBlue    = Color{Type: ColorTypeANSI, Idx: 4}
+	ColorMagenta = Color{Type: ColorTypeANSI, Idx: 5}
+	ColorCyan    = Color{Type: ColorTypeANSI, Idx: 6}
+	ColorWhite   = Color{Type: ColorTypeANSI, Idx: 7}
+)
+
+func ColorANSI(idx uint8) Color {
+	return Color{Type: ColorTypeANSI, Idx: idx}
+}
+
+func Color256(idx uint8) Color {
+	return Color{Type: ColorType256, Idx: idx}
+}
+
+func ColorRGB(r, g, b uint8) Color {
+	return Color{Type: ColorTypeRGB, R: r, G: g, B: b}
+}
+
+// ColorHex parses a hex color string (e.g., "#3E4451", "3E4451", "#3E4", "3E4")
+// and returns an RGB Color. Returns ColorDefault if parsing fails.
+func ColorHex(hex string) Color {
+	hex = strings.TrimPrefix(hex, "#")
+
+	if len(hex) == 3 {
+		hex = string([]byte{
+			hex[0], hex[0],
+			hex[1], hex[1],
+			hex[2], hex[2],
+		})
+	}
+
+	if len(hex) != 6 {
+		return ColorDefault
+	}
+
+	val, err := strconv.ParseUint(hex, 16, 32)
+	if err != nil {
+		return ColorDefault
+	}
+
+	return ColorRGB(
+		uint8((val>>16)&0xFF),
+		uint8((val>>8)&0xFF),
+		uint8(val&0xFF),
+	)
+}
 
 // Attr stores terminal text attributes.
 type Attr uint16

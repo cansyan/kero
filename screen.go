@@ -86,6 +86,7 @@ func (s *Screen) Flush() error {
 
 func styleANSI(s Style) string {
 	codes := []string{"0"}
+
 	if s.Attr&AttrBold != 0 {
 		codes = append(codes, "1")
 	}
@@ -101,11 +102,38 @@ func styleANSI(s Style) string {
 	if s.Attr&AttrReverse != 0 {
 		codes = append(codes, "7")
 	}
-	if s.Fg != ColorDefault {
-		codes = append(codes, fmt.Sprintf("%d", 30+int(s.Fg)-1))
+
+	if code := colorANSICode(s.Fg, false); code != "" {
+		codes = append(codes, code)
 	}
-	if s.Bg != ColorDefault {
-		codes = append(codes, fmt.Sprintf("%d", 40+int(s.Bg)-1))
+	if code := colorANSICode(s.Bg, true); code != "" {
+		codes = append(codes, code)
 	}
+
 	return "\x1b[" + strings.Join(codes, ";") + "m"
+}
+
+func colorANSICode(c Color, isBg bool) string {
+	switch c.Type {
+	case ColorTypeANSI:
+		offset := 30
+		if isBg {
+			offset = 40
+		}
+		return fmt.Sprintf("%d", offset+int(c.Idx))
+	case ColorType256:
+		layer := "38"
+		if isBg {
+			layer = "48"
+		}
+		return fmt.Sprintf("%s;5;%d", layer, c.Idx)
+	case ColorTypeRGB:
+		layer := "38"
+		if isBg {
+			layer = "48"
+		}
+		return fmt.Sprintf("%s;2;%d;%d;%d", layer, c.R, c.G, c.B)
+	default:
+		return ""
+	}
 }
