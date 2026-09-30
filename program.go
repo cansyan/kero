@@ -14,8 +14,9 @@ type Program struct {
 	screen   *Screen
 	ctx      Context
 
-	frameTimer *time.Timer
-	frameC     <-chan time.Time
+	frameTimer    *time.Timer
+	frameC        <-chan time.Time
+	frameRequests chan struct{}
 }
 
 // New creates a Program.
@@ -27,10 +28,11 @@ func New(app App, opts ...Option) *Program {
 
 	terminal := newTerminal(os.Stdin, os.Stdout, options)
 	return &Program{
-		app:      app,
-		opts:     options,
-		terminal: terminal,
-		screen:   NewScreen(os.Stdout, 0, 0),
+		app:           app,
+		opts:          options,
+		terminal:      terminal,
+		screen:        NewScreen(os.Stdout, 0, 0),
+		frameRequests: make(chan struct{}, 1),
 		ctx: Context{
 			terminal: terminal,
 		},
@@ -81,6 +83,10 @@ func (p *Program) Run() error {
 				return result.err
 			}
 			ev = result.ev
+
+		case <-p.frameRequests:
+			p.scheduleFrame()
+			continue
 
 		case tm := <-p.frameC:
 			delta := time.Duration(0)
@@ -135,6 +141,13 @@ func (p *Program) readEvents(events chan<- eventResult) {
 }
 
 func (p *Program) requestFrame() {
+	select {
+	case p.frameRequests <- struct{}{}:
+	default:
+	}
+}
+
+func (p *Program) scheduleFrame() {
 	fps := p.opts.FPS
 	if fps <= 0 {
 		return
