@@ -13,6 +13,9 @@ type Program struct {
 	terminal Terminal
 	screen   *Screen
 	ctx      Context
+
+	frameTimer *time.Timer
+	frameC     <-chan time.Time
 }
 
 // New creates a Program.
@@ -41,6 +44,8 @@ func (p *Program) CopyToClipboard(text string) error {
 
 // Run starts the terminal program and blocks until the app quits or an error occurs.
 func (p *Program) Run() error {
+	p.ctx.requestFrame = p.requestFrame
+
 	if err := p.terminal.Enter(); err != nil {
 		return err
 	}
@@ -65,12 +70,7 @@ func (p *Program) Run() error {
 	events := make(chan eventResult)
 	go p.readEvents(events)
 
-	var ticks <-chan time.Time
-	if p.opts.FPS > 0 {
-		ticker := time.NewTicker(time.Second / time.Duration(p.opts.FPS))
-		defer ticker.Stop()
-		ticks = ticker.C
-	}
+	var lastFrame time.Time
 
 	for !p.ctx.done {
 		var ev Event
@@ -81,8 +81,22 @@ func (p *Program) Run() error {
 				return result.err
 			}
 			ev = result.ev
-		case tm := <-ticks:
-			ev = TickEvent{Time: tm}
+
+		case tm := <-p.frameC:
+			delta := time.Duration(0)
+			if !lastFrame.IsZero() {
+				delta = tm.Sub(lastFrame)
+			}
+			lastFrame = tm
+
+			// The timer has fired, so another frame isn't
+			// currently scheduled.
+			p.frameC = nil
+
+			ev = FrameEvent{
+				Time:  tm,
+				Delta: delta,
+			}
 		}
 
 		if resize, ok := ev.(ResizeEvent); ok {
@@ -118,6 +132,29 @@ func (p *Program) readEvents(events chan<- eventResult) {
 			return
 		}
 	}
+}
+
+func (p *Program) requestFrame() {
+	fps := p.opts.FPS
+	if fps <= 0 {
+		return
+	}
+
+	interval := time.Second / time.Duration(fps)
+
+	// A frame is already scheduled.
+	// Don't create another one.
+	if p.frameC != nil {
+		return
+	}
+
+	if p.frameTimer == nil {
+		p.frameTimer = time.NewTimer(interval)
+	} else {
+		p.frameTimer.Reset(interval)
+	}
+
+	p.frameC = p.frameTimer.C
 }
 
 type eventResult struct {

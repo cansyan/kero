@@ -4,7 +4,7 @@ package kero
 type Options struct {
 	AltScreen bool
 	Mouse     bool
-	// FPS limits timed redraws, such as spinners, clocks, and animations.
+	// FPS limits frame rate for spinners, clocks, and animations.
 	// Event-only apps can ignore it and render only after input or resize.
 	FPS            int
 	Kitty          bool // kitty keyboard protocol
@@ -37,8 +37,8 @@ func WithMouse(v bool) Option {
 	}
 }
 
-// WithFPS sets the maximum timed redraw rate.
-func WithFPS(fps int) Option {
+// WithFrameRate sets animation rate.
+func WithFrameRate(fps int) Option {
 	return func(o *Options) {
 		if fps > 0 {
 			o.FPS = fps

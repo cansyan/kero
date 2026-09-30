@@ -18,6 +18,7 @@ func (b *Bouncer) Init(ctx *kero.Context) error {
 	b.y = ctx.Height / 2
 	b.dx = 1
 	b.dy = 1
+	ctx.RequestFrame()
 	return nil
 }
 
@@ -32,8 +33,9 @@ func (b *Bouncer) Update(ctx *kero.Context, ev kero.Event) error {
 				ctx.Quit()
 			}
 		}
-	case kero.TickEvent:
+	case kero.FrameEvent:
 		b.step(ctx)
+		ctx.RequestFrame()
 	}
 
 	return nil
@@ -80,7 +82,7 @@ func (b *Bouncer) step(ctx *kero.Context) {
 
 func main() {
 	app := &Bouncer{}
-	p := kero.New(app, kero.WithAltScreen(true), kero.WithFPS(20))
+	p := kero.New(app, kero.WithAltScreen(true), kero.WithFrameRate(20))
 
 	if err := p.Run(); err != nil {
 		panic(err)

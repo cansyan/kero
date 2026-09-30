@@ -5,8 +5,9 @@ type Context struct {
 	Width  int
 	Height int
 
-	done     bool
-	terminal Terminal
+	done         bool
+	terminal     Terminal
+	requestFrame func()
 }
 
 // Quit asks the program loop to stop after the current event is handled.
@@ -25,4 +26,9 @@ func (c *Context) CopyToClipboard(text string) error {
 		return nil
 	}
 	return c.terminal.CopyToClipboard(text)
+}
+
+// RequestFrame requests one-shot frame.
+func (ctx *Context) RequestFrame() {
+	ctx.requestFrame()
 }

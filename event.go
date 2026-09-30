@@ -91,13 +91,14 @@ type ResizeEvent struct {
 
 func (ResizeEvent) event() {}
 
-// TickEvent represents a timed redraw tick.
-// It only presents when program option FPS is set
-type TickEvent struct {
-	Time time.Time
+// FrameEvent represents a timed redraw event.
+// It only presents on-demand
+type FrameEvent struct {
+	Time  time.Time
+	Delta time.Duration
 }
 
-func (TickEvent) event() {}
+func (FrameEvent) event() {}
 
 // MouseEvent represents a terminal mouse event.
 type MouseEvent struct {
