@@ -94,8 +94,7 @@ func (ResizeEvent) event() {}
 // FrameEvent represents a timed redraw event.
 // It only presents on-demand
 type FrameEvent struct {
-	Time  time.Time
-	Delta time.Duration // TODO
+	Time time.Time
 }
 
 func (FrameEvent) event() {}

@@ -72,8 +72,6 @@ func (p *Program) Run() error {
 	events := make(chan eventResult)
 	go p.readEvents(events)
 
-	var lastFrame time.Time
-
 	for !p.ctx.done {
 		var ev Event
 
@@ -89,19 +87,12 @@ func (p *Program) Run() error {
 			continue
 
 		case tm := <-p.frameC:
-			delta := time.Duration(0)
-			if !lastFrame.IsZero() {
-				delta = tm.Sub(lastFrame)
-			}
-			lastFrame = tm
-
 			// The timer has fired, so another frame isn't
 			// currently scheduled.
 			p.frameC = nil
 
 			ev = FrameEvent{
-				Time:  tm,
-				Delta: delta,
+				Time: tm,
 			}
 		}
 
@@ -152,20 +143,18 @@ func (p *Program) scheduleFrame(fps int) {
 		return
 	}
 
-	interval := time.Second / time.Duration(fps)
-
 	// A frame is already scheduled.
 	// Don't create another one.
 	if p.frameC != nil {
 		return
 	}
 
+	interval := time.Second / time.Duration(fps)
 	if p.frameTimer == nil {
 		p.frameTimer = time.NewTimer(interval)
 	} else {
 		p.frameTimer.Reset(interval)
 	}
-
 	p.frameC = p.frameTimer.C
 }
 
