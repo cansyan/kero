@@ -7,8 +7,7 @@ import (
 
 func TestRequestFrameQueuesConcurrentRequests(t *testing.T) {
 	p := &Program{
-		opts:          Options{FPS: 30},
-		frameRequests: make(chan struct{}, 1),
+		frameRequests: make(chan int, 1),
 	}
 
 	const callers = 32
@@ -17,7 +16,7 @@ func TestRequestFrameQueuesConcurrentRequests(t *testing.T) {
 	for range callers {
 		go func() {
 			defer wg.Done()
-			p.requestFrame()
+			p.requestFrame(30)
 		}()
 	}
 	wg.Wait()
@@ -29,8 +28,7 @@ func TestRequestFrameQueuesConcurrentRequests(t *testing.T) {
 		t.Fatal("requestFrame modified timer state outside the program loop")
 	}
 
-	<-p.frameRequests
-	p.scheduleFrame()
+	p.scheduleFrame(<-p.frameRequests)
 	if p.frameC == nil || p.frameTimer == nil {
 		t.Fatal("scheduleFrame did not arm the frame timer")
 	}

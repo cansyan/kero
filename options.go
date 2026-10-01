@@ -2,11 +2,8 @@ package kero
 
 // Options configures a Program.
 type Options struct {
-	AltScreen bool
-	Mouse     bool
-	// FPS limits frame rate for spinners, clocks, and animations.
-	// Event-only apps can ignore it and render only after input or resize.
-	FPS            int
+	AltScreen      bool
+	Mouse          bool
 	Kitty          bool // kitty keyboard protocol
 	BracketedPaste bool
 }
@@ -34,15 +31,6 @@ func WithAltScreen(v bool) Option {
 func WithMouse(v bool) Option {
 	return func(o *Options) {
 		o.Mouse = v
-	}
-}
-
-// WithFrameRate sets animation rate.
-func WithFrameRate(fps int) Option {
-	return func(o *Options) {
-		if fps > 0 {
-			o.FPS = fps
-		}
 	}
 }
 

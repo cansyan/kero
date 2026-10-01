@@ -95,7 +95,7 @@ func (ResizeEvent) event() {}
 // It only presents on-demand
 type FrameEvent struct {
 	Time  time.Time
-	Delta time.Duration
+	Delta time.Duration // TODO
 }
 
 func (FrameEvent) event() {}

@@ -16,7 +16,7 @@ type Program struct {
 
 	frameTimer    *time.Timer
 	frameC        <-chan time.Time
-	frameRequests chan struct{}
+	frameRequests chan int
 }
 
 // New creates a Program.
@@ -32,7 +32,7 @@ func New(app App, opts ...Option) *Program {
 		opts:          options,
 		terminal:      terminal,
 		screen:        NewScreen(os.Stdout, 0, 0),
-		frameRequests: make(chan struct{}, 1),
+		frameRequests: make(chan int, 1),
 		ctx: Context{
 			terminal: terminal,
 		},
@@ -84,8 +84,8 @@ func (p *Program) Run() error {
 			}
 			ev = result.ev
 
-		case <-p.frameRequests:
-			p.scheduleFrame()
+		case fps := <-p.frameRequests:
+			p.scheduleFrame(fps)
 			continue
 
 		case tm := <-p.frameC:
@@ -140,15 +140,14 @@ func (p *Program) readEvents(events chan<- eventResult) {
 	}
 }
 
-func (p *Program) requestFrame() {
+func (p *Program) requestFrame(fps int) {
 	select {
-	case p.frameRequests <- struct{}{}:
+	case p.frameRequests <- fps:
 	default:
 	}
 }
 
-func (p *Program) scheduleFrame() {
-	fps := p.opts.FPS
+func (p *Program) scheduleFrame(fps int) {
 	if fps <= 0 {
 		return
 	}
