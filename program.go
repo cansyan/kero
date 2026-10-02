@@ -14,9 +14,10 @@ type Program struct {
 	screen   *Screen
 	ctx      Context
 
-	frameTimer    *time.Timer
-	frameC        <-chan time.Time
-	frameRequests chan int
+	frameTimer *time.Timer
+	frameC     <-chan time.Time
+
+	commands chan func(*Context)
 }
 
 // New creates a Program.
@@ -27,16 +28,18 @@ func New(app App, opts ...Option) *Program {
 	}
 
 	terminal := newTerminal(os.Stdin, os.Stdout, options)
-	return &Program{
-		app:           app,
-		opts:          options,
-		terminal:      terminal,
-		screen:        NewScreen(os.Stdout, 0, 0),
-		frameRequests: make(chan int, 1),
+	p := &Program{
+		app:      app,
+		opts:     options,
+		terminal: terminal,
+		screen:   NewScreen(os.Stdout, 0, 0),
 		ctx: Context{
 			terminal: terminal,
 		},
+		commands: make(chan func(*Context), 64),
 	}
+	p.ctx.post = p.post
+	return p
 }
 
 // CopyToClipboard copies text to the system clipboard via the terminal.
@@ -82,8 +85,14 @@ func (p *Program) Run() error {
 			}
 			ev = result.ev
 
-		case fps := <-p.frameRequests:
-			p.scheduleFrame(fps)
+		case fn := <-p.commands:
+			fn(&p.ctx)
+
+			// The posted function may have changed state.
+			// Continue through normal rendering.
+			if err := p.render(); err != nil {
+				return err
+			}
 			continue
 
 		case tm := <-p.frameC:
@@ -132,13 +141,6 @@ func (p *Program) readEvents(events chan<- eventResult) {
 }
 
 func (p *Program) requestFrame(fps int) {
-	select {
-	case p.frameRequests <- fps:
-	default:
-	}
-}
-
-func (p *Program) scheduleFrame(fps int) {
 	if fps <= 0 {
 		return
 	}
@@ -156,6 +158,10 @@ func (p *Program) scheduleFrame(fps int) {
 		p.frameTimer.Reset(interval)
 	}
 	p.frameC = p.frameTimer.C
+}
+
+func (p *Program) post(fn func(*Context)) {
+	p.commands <- fn
 }
 
 type eventResult struct {
