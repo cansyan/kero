@@ -58,6 +58,9 @@ func (s *Screen) Flush() error {
 	for y := 0; y < s.height; y++ {
 		for x := 0; x < s.width; x++ {
 			cell := s.next.Cell(x, y)
+			if cell.Ch == Continuation {
+				continue
+			}
 			if cell.Style != current {
 				current = cell.Style
 				b.WriteString(styleANSI(current))

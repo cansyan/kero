@@ -1,5 +1,11 @@
 package kero
 
+import "github.com/mattn/go-runewidth"
+
+// Continuation is a sentinel rune used in wide-character continuation cells.
+// Screen.Flush skips emitting output for cells containing Continuation.
+const Continuation rune = -1
+
 // Cell is one terminal cell.
 type Cell struct {
 	Ch    rune
@@ -39,6 +45,8 @@ func (f *Frame) Clear() {
 }
 
 // Set writes one cell. Writes outside the frame are ignored.
+// If ch is wide (e.g. CJK, width 2), the following cell(s) on the same row
+// are marked as Continuation cells with the same style.
 func (f *Frame) Set(x, y int, ch rune, s Style) {
 	if x < 0 || y < 0 || x >= f.width || y >= f.height {
 		return
@@ -47,9 +55,19 @@ func (f *Frame) Set(x, y int, ch rune, s Style) {
 		ch = ' '
 	}
 	f.cells[y*f.width+x] = Cell{Ch: ch, Style: s}
+
+	if ch != Continuation {
+		w := runewidth.RuneWidth(ch)
+		for i := 1; i < w; i++ {
+			if x+i < f.width {
+				f.cells[y*f.width+(x+i)] = Cell{Ch: Continuation, Style: s}
+			}
+		}
+	}
 }
 
 // Write writes text starting at x/y. Text is clipped to the frame.
+// Wide characters advance the column position by their display width.
 func (f *Frame) Write(x, y int, text string, s Style) {
 	if y < 0 || y >= f.height {
 		return
@@ -58,10 +76,14 @@ func (f *Frame) Write(x, y int, text string, s Style) {
 		if x >= f.width {
 			return
 		}
+		w := runewidth.RuneWidth(ch)
+		if w <= 0 {
+			w = 1
+		}
 		if x >= 0 {
 			f.Set(x, y, ch, s)
 		}
-		x++
+		x += w
 	}
 }
 

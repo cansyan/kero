@@ -30,3 +30,27 @@ func TestFrameBox(t *testing.T) {
 		}
 	}
 }
+
+func TestFrameWideCharacters(t *testing.T) {
+	f := NewFrame(6, 2)
+	f.Write(0, 0, "世界hi", NewStyle())
+
+	if got := f.Cell(0, 0).Ch; got != '世' {
+		t.Fatalf("cell(0,0) = %q, want '世'", got)
+	}
+	if got := f.Cell(1, 0).Ch; got != Continuation {
+		t.Fatalf("cell(1,0) = %v, want Continuation", got)
+	}
+	if got := f.Cell(2, 0).Ch; got != '界' {
+		t.Fatalf("cell(2,0) = %q, want '界'", got)
+	}
+	if got := f.Cell(3, 0).Ch; got != Continuation {
+		t.Fatalf("cell(3,0) = %v, want Continuation", got)
+	}
+	if got := f.Cell(4, 0).Ch; got != 'h' {
+		t.Fatalf("cell(4,0) = %q, want 'h'", got)
+	}
+	if got := f.Cell(5, 0).Ch; got != 'i' {
+		t.Fatalf("cell(5,0) = %q, want 'i'", got)
+	}
+}
