@@ -54,10 +54,62 @@ func (f *Frame) Set(x, y int, ch rune, s Style) {
 	if ch == 0 || ch == '\n' || ch == '\r' || ch == '\t' {
 		ch = ' '
 	}
+
+	w := runewidth.RuneWidth(ch)
+	if w <= 0 {
+		w = 1
+	}
+
+	// If overwriting a continuation cell, clear the preceding wide character.
+	if f.cells[y*f.width+x].Ch == Continuation {
+		for prevX := x - 1; prevX >= 0; prevX-- {
+			idx := y*f.width + prevX
+			if f.cells[idx].Ch != Continuation {
+				f.cells[idx] = Cell{Ch: ' ', Style: f.cells[idx].Style}
+				break
+			}
+			f.cells[idx] = Cell{Ch: ' ', Style: f.cells[idx].Style}
+		}
+	}
+
+	// If overwriting a lead wide character, clear its old continuation cells.
+	oldRune := f.cells[y*f.width+x].Ch
+	if oldRune != Continuation && oldRune != ' ' {
+		oldW := runewidth.RuneWidth(oldRune)
+		for i := 1; i < oldW && x+i < f.width; i++ {
+			idx := y*f.width + (x + i)
+			if f.cells[idx].Ch == Continuation {
+				f.cells[idx] = Cell{Ch: ' ', Style: f.cells[idx].Style}
+			}
+		}
+	}
+
+	// If a wide character doesn't fit on the row, replace with a space.
+	if ch != Continuation && x+w > f.width {
+		ch = ' '
+		w = 1
+	}
+
+	// If placing a wide character, clear any characters covered by its continuation cells.
+	if ch != Continuation && w > 1 {
+		for i := 1; i < w && x+i < f.width; i++ {
+			idx := y*f.width + (x + i)
+			cellRune := f.cells[idx].Ch
+			if cellRune != Continuation {
+				cellW := runewidth.RuneWidth(cellRune)
+				for j := 1; j < cellW && x+i+j < f.width; j++ {
+					cIdx := y*f.width + (x + i + j)
+					if f.cells[cIdx].Ch == Continuation {
+						f.cells[cIdx] = Cell{Ch: ' ', Style: f.cells[cIdx].Style}
+					}
+				}
+			}
+		}
+	}
+
 	f.cells[y*f.width+x] = Cell{Ch: ch, Style: s}
 
 	if ch != Continuation {
-		w := runewidth.RuneWidth(ch)
 		for i := 1; i < w; i++ {
 			if x+i < f.width {
 				f.cells[y*f.width+(x+i)] = Cell{Ch: Continuation, Style: s}
